@@ -48,17 +48,27 @@ if [ ${#DIFF} -gt 8000 ]; then
 fi
 
 # ── 2. Build prompt ───────────────────────────────────────────────────────────
-TASK="Bạn là code reviewer. Hãy review đoạn git diff sau và đưa ra nhận xét ngắn gọn.
+TASK="Bạn là code reviewer nghiêm ngặt. Hãy review đoạn git diff sau.
 
-Tiêu chí review:
-- Lỗi syntax hoặc runtime rõ ràng
-- Security issues (hardcoded secrets, SQL injection, v.v.)
-- Code smells nghiêm trọng
-- Logic sai
+TIÊU CHÍ REJECT (phải chặn push):
+- Lỗi syntax Python/JavaScript/... (ví dụ: prin thay vì print, a = int 1)
+- Runtime errors rõ ràng (undefined variables, wrong function calls)
+- Security issues (hardcoded secrets, API keys, SQL injection)
+- Logic sai nghiêm trọng gây crash hoặc data loss
+
+TIÊU CHÍ APPROVE:
+- Code chạy được, không có lỗi syntax
+- Có thể có code smell nhỏ nhưng không ảnh hưởng chức năng
+- Formatting issues, naming conventions (không chặn)
+
+QUAN TRỌNG:
+- Nếu thấy BẤT KỲ lỗi syntax nào → REJECT
+- Nếu code có vẻ là gibberish/test code với nhiều lỗi → REJECT
+- Chỉ APPROVE khi code chắc chắn chạy được
 
 Cuối cùng, kết luận bằng đúng một trong hai từ trên một dòng riêng:
-APPROVE  (nếu code đạt yêu cầu hoặc chỉ có vấn đề nhỏ)
-REJECT   (nếu có lỗi nghiêm trọng cần sửa trước khi push)
+APPROVE  (code chạy được, không có lỗi nghiêm trọng)
+REJECT   (có lỗi syntax, security, hoặc logic nghiêm trọng)
 
 --- GIT DIFF ---
 $DIFF_TRUNCATED
