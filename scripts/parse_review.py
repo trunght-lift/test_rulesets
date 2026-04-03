@@ -37,7 +37,8 @@ def extract_agent_messages_from_json_events(lines):
                 current = str(lines[i]).strip()
                 if current in ("--JSON Event--", "Agent finished", "Agent is working"):
                     break
-                json_lines.append(str(lines[i]))
+                safe_line = str(lines[i]).replace('\n', '\\n').replace('\r', '\\r')
+                json_lines.append(safe_line)
                 i += 1
 
             json_str = "\n".join(json_lines).strip()
