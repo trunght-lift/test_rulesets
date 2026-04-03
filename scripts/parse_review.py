@@ -68,6 +68,9 @@ def main():
     # Nếu không tìm thấy trong agent_messages, lấy last_content
     if not verdict_text:
         verdict_text = last_content
+    
+    with open("t.txt", "w") as f:
+        f.write(verdict_text)
 
     print("\n" + "="*60)
     print("OpenHands Code Review")
