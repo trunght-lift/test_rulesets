@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
 """
-Parse JSONL output từ OpenHands headless --json mode.
+Parse output từ OpenHands headless --json mode.
 Tìm verdict APPROVE / REJECT trong nội dung agent trả về.
 Exit 0 = OK to push, Exit 1 = blocked.
 """
 import sys
 import json
 import re
+import ast
 
 APPROVE_PATTERN = re.compile(r'\bAPPROVE\b', re.IGNORECASE)
 REJECT_PATTERN  = re.compile(r'\bREJECT\b',  re.IGNORECASE)
 
 def main():
-    raw_input = sys.stdin.read()
-    lines = raw_input.strip().splitlines()
+    raw_input = sys.stdin.read().strip()
+    
+    # Thử parse như Python list (nếu output bị wrap bởi debug code cũ)
+    try:
+        lines = ast.literal_eval(raw_input)
+        if not isinstance(lines, list):
+            lines = raw_input.splitlines()
+    except (ValueError, SyntaxError):
+        lines = raw_input.splitlines()
     
     agent_responses = []
     full_text = ""
@@ -21,7 +29,7 @@ def main():
     # Parse từng dòng, tìm JSON events từ agent
     i = 0
     while i < len(lines):
-        line = lines[i].strip()
+        line = str(lines[i]).strip()
         
         # Tìm marker "--JSON Event--"
         if line == "--JSON Event--":
@@ -32,7 +40,7 @@ def main():
             started = False
             
             while i < len(lines):
-                current = lines[i]
+                current = str(lines[i])
                 json_lines.append(current)
                 
                 # Đếm dấu ngoặc để biết khi nào JSON object kết thúc
@@ -65,7 +73,7 @@ def main():
                             if text:
                                 agent_responses.append(text)
                                 full_text += "\n" + text
-            except (json.JSONDecodeError, ValueError) as e:
+            except (json.JSONDecodeError, ValueError):
                 # Bỏ qua JSON không hợp lệ
                 pass
         
