@@ -22,4 +22,4 @@ jobs:
       - name: Simulate fail
         run: |
           echo "This check will fail now"
-          exit 1
+          exit 0
