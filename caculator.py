@@ -13,6 +13,9 @@ def tim_gia_tri_lon_nhat(danh_sach):
             lon_nhat = so
     return lon_nhat
 
+
+
+
 def chuyen_doi_nhiet_do(celsius):
     return celsius * 9 / 5 + 32  # Đúng
     print("Kết quả:", celsius)    # Unreachable code
