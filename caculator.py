@@ -45,7 +45,7 @@ print(rut_tien(100, 999))         # Trả về -899 — không hợp lệ
 
 
 print(tinh_trung_binh([]))
-
+hfghfgh
 
 
 d
