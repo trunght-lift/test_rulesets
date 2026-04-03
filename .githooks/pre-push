@@ -5,10 +5,13 @@ set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 PARSE_SCRIPT="$REPO_ROOT/scripts/parse_review.py"
+LOG_FILE="$REPO_ROOT/.openhands-review.log"
 
 # Load .env nếu có
 if [ -f "$REPO_ROOT/.env" ]; then
-    export $(grep -v '^#' "$REPO_ROOT/.env" | xargs)
+    set -a
+    source "$REPO_ROOT/.env"
+    set +a
 fi
 
 # ── 1. Lấy diff của commits sắp push ─────────────────────────────────────────
@@ -78,8 +81,8 @@ REVIEW_OUTPUT=$(openhands --headless --json --always-approve \
     --override-with-envs \
     -t "$TASK" 2>&1) || true
 
-# Lưu output để debug nếu cần
-echo "$REVIEW_OUTPUT" > "$REPO_ROOT/.openhands-review.log"
+# Lưu output để debug (không chứa sensitive data vì chỉ là diff + review)
+echo "$REVIEW_OUTPUT" > "$LOG_FILE"
 
 # ── 5. Parse verdict ──────────────────────────────────────────────────────────
 echo "$REVIEW_OUTPUT" | python3 "$PARSE_SCRIPT"
