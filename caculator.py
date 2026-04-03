@@ -38,3 +38,5 @@ print("Lớn nhất:", tim_gia_tri_lon_nhat(ds))  # Trả về 0 thay vì -1
 print(kiem_tra_so_nguyen_to(1))   # Trả về True — sai
 
 print(rut_tien(100, 999))         # Trả về -899 — không hợp lệ
+
+
