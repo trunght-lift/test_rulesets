@@ -4,6 +4,7 @@ def tinh_trung_binh(danh_sach):
     tong = 0
     for so in danh_sach:
         tong += so
+    print(1)
     return tong / len(danh_sach)  # ZeroDivisionError nếu list rỗng
 
 def tim_gia_tri_lon_nhat(danh_sach):
