@@ -53,3 +53,13 @@ git commit -m "test review"
 # Push sẽ trigger review
 git push
 ```
+
+### Debug
+
+Nếu hook gặp lỗi, bật debug mode:
+
+```bash
+DEBUG=1 git push
+```
+
+Log sẽ được lưu vào `.openhands-review.log` để kiểm tra.

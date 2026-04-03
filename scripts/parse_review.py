@@ -76,16 +76,24 @@ def main():
     if not agent_responses:
         print("[review] Không có response từ agent.", file=sys.stderr)
         print("[review] Có thể OpenHands chưa hoàn thành hoặc gặp lỗi.", file=sys.stderr)
-        print("[review] Kiểm tra log tại .openhands-review.log", file=sys.stderr)
+        print("[review] Để debug, chạy lại với: DEBUG=1 git push", file=sys.stderr)
         sys.exit(1)
     
-    # Lấy response cuối cùng từ agent (thường là verdict)
-    final_response = agent_responses[-1]
+    # Tìm response có verdict (APPROVE/REJECT), ưu tiên response cuối
+    verdict_response = None
+    for response in reversed(agent_responses):
+        if APPROVE_PATTERN.search(response) or REJECT_PATTERN.search(response):
+            verdict_response = response
+            break
+    
+    # Nếu không tìm thấy verdict, lấy response cuối
+    if not verdict_response:
+        verdict_response = agent_responses[-1]
     
     print("\n" + "="*60)
     print("OpenHands Code Review")
     print("="*60)
-    print(final_response.strip())
+    print(verdict_response.strip())
     print("="*60 + "\n")
 
     if REJECT_PATTERN.search(full_text):
