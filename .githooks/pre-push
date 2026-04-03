@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# pre-push hook: chạy OpenHands code review trước khi push
+# Flow: build diff → openhands CLI headless --json → parse verdict
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PARSE_SCRIPT="$REPO_ROOT/scripts/parse_review.py"
+LOG_FILE="$REPO_ROOT/.openhands-review.log"
+
+# Load .env an toàn (chỉ export key=value, bỏ qua comment và dòng trống)
+if [ -f "$REPO_ROOT/.env" ]; then
+    while IFS='=' read -r key value; do
+        # Bỏ qua comment và dòng trống
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+        # Export biến (strip quotes nếu có)
+        value="${value%\"}"
+        value="${value#\"}"
+        export "$key=$value"
+    done < <(grep -v '^#' "$REPO_ROOT/.env" | grep -v '^$')
+fi
+
+# ── 1. Lấy diff của commits sắp push ─────────────────────────────────────────
+# stdin của pre-push: "<local_ref> <local_sha1> <remote_ref> <remote_sha1>"
+DIFF=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue  # branch bị xóa, bỏ qua
+    fi
+
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # Branch mới, diff toàn bộ
+        DIFF+=$(git diff --unified=3 "$(git rev-list --max-parents=0 HEAD)"..HEAD 2>/dev/null || git show --unified=3 "$local_sha")
+    else
+        DIFF+=$(git diff --unified=3 "$remote_sha".."$local_sha")
+    fi
+done
+
+DIFF=$(echo "$DIFF" | python3 -c "
+import sys, re
+new_line = 0
+for line in sys.stdin:
+    line = line.rstrip('\n')
+    hunk = re.match(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@', line)
+    if hunk:
+        new_line = int(hunk.group(1))
+        print(line)
+    elif line.startswith(('+++', '---', 'diff', 'index', 'new file', 'deleted file')):
+        print(line)
+    elif line.startswith('+'):
+        print(f'+[L{new_line}] {line[1:]}')
+        new_line += 1
+    elif line.startswith('-'):
+        print(line)
+    elif line.startswith(' '):
+        print(f' [L{new_line}] {line[1:]}')
+        new_line += 1
+    else:
+        print(line)
+")
+
+if [ -z "$DIFF" ]; then   # ← check này vẫn giữ nguyên
+    echo "[pre-push] Không có thay đổi code, bỏ qua review."
+    exit 0
+fi
+
+# Giới hạn diff để không vượt context window (~8000 chars)
+DIFF_TRUNCATED="${DIFF:0:8000}"
+if [ ${#DIFF} -gt 8000 ]; then
+    DIFF_TRUNCATED+=$'\n\n[... diff bị cắt bớt do quá dài ...]'
+fi
+
+# ── 2. Build prompt ───────────────────────────────────────────────────────────
+TASK="Bạn là code reviewer. Nhiệm vụ của bạn:
+
+1. Đọc git diff dưới đây để biết file nào và dòng nào thay đổi
+2. Dùng tool để xem full context file nếu cần hiểu rõ hơn
+3. Nếu nghi ngờ có lỗi runtime, chạy thử bằng: python -m py_compile <file>
+   hoặc python -c để verify
+4. Sau khi có đủ thông tin, KẾT THÚC bằng đúng một trong hai:
+
+APPROVE  — nếu code chạy được, không có lỗi nghiêm trọng
+REJECT   — nếu có lỗi nghiêm trọng, kèm: <file>:<line> — <lý do>
+
+QUAN TRỌNG: Khi đã đủ thông tin để kết luận, dừng lại và đưa ra verdict ngay.
+Không lặp lại việc xem file nhiều lần.
+
+--- GIT DIFF ---
+$DIFF_TRUNCATED
+--- END DIFF ---"
+
+# ── 3. Kiểm tra OpenHands CLI ────────────────────────────────────────────────
+if ! command -v openhands &> /dev/null; then
+    echo "[pre-push] OpenHands CLI chưa cài đặt."
+    echo "           Cài đặt: pip install openhands-ai"
+    echo "           Hoặc: pipx install openhands-ai"
+    echo "           Bỏ qua review, tiếp tục push..."
+    exit 0
+fi
+
+# Kiểm tra API key
+if [ -z "${LLM_API_KEY:-}" ]; then
+    echo "[pre-push] LLM_API_KEY chưa được set trong .env"
+    echo "           Bỏ qua review, tiếp tục push..."
+    exit 0
+fi
+
+# ── 4. Chạy OpenHands headless ────────────────────────────────────────────────
+echo "[pre-push] Đang chạy OpenHands code review..."
+
+REVIEW_OUTPUT=$(openhands --headless --json --always-approve \
+    --override-with-envs \
+    -t "$TASK" 2>&1) || true
+
+# Chỉ lưu log nếu có env DEBUG=1 (tránh lộ thông tin nhạy cảm)
+if [ "${DEBUG:-1}" = "1" ]; then
+    echo "$REVIEW_OUTPUT" > "$LOG_FILE"
+    echo "[debug] Output đã lưu vào $LOG_FILE" >&2
+fi
+
+# ── 5. Parse verdict ──────────────────────────────────────────────────────────
+echo "$REVIEW_OUTPUT" | python3 "$PARSE_SCRIPT"
+PARSE_EXIT_CODE=$?
+
+# Exit với code từ parse script (0 = approve, 1 = reject)
+exit $PARSE_EXIT_CODE
