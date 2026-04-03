@@ -7,5 +7,3 @@ sdfsdfsdf
 
 sdsdfjksdhfjksdhfkjsdh
 
-
-looxi o day
