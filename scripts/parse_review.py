@@ -81,6 +81,17 @@ def main():
     
     if not agent_responses:
         print("[review] Không có response từ agent.", file=sys.stderr)
+        # Debug: lưu để kiểm tra
+        debug_file = "/tmp/openhands-hook-debug.txt"
+        with open(debug_file, "w") as f:
+            f.write("=== RAW INPUT ===\n")
+            f.write(raw_input[:5000])  # 5000 ký tự đầu
+            f.write("\n\n=== LINES TYPE ===\n")
+            f.write(str(type(lines)))
+            f.write("\n\n=== FIRST 10 LINES ===\n")
+            for idx, line in enumerate(lines[:10]):
+                f.write(f"{idx}: {repr(line)}\n")
+        print(f"[debug] Output đã lưu vào {debug_file}", file=sys.stderr)
         sys.exit(1)
     
     # Lấy response cuối cùng từ agent (thường là verdict)

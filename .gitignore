@@ -1,6 +1,9 @@
 # Environment secrets
 .env
 
+# OpenHands review logs
+.openhands-review.log
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
