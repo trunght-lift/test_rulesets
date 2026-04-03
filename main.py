@@ -7,6 +7,3 @@ d.append(3)
 print(d)
 
 
-
-
-

@@ -36,7 +36,30 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     fi
 done
 
-if [ -z "$DIFF" ]; then
+DIFF=$(echo "$DIFF" | python3 -c "
+import sys, re
+new_line = 0
+for line in sys.stdin:
+    line = line.rstrip('\n')
+    hunk = re.match(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@', line)
+    if hunk:
+        new_line = int(hunk.group(1))
+        print(line)
+    elif line.startswith(('+++', '---', 'diff', 'index', 'new file', 'deleted file')):
+        print(line)
+    elif line.startswith('+'):
+        print(f'+[L{new_line}] {line[1:]}')
+        new_line += 1
+    elif line.startswith('-'):
+        print(line)
+    elif line.startswith(' '):
+        print(f' [L{new_line}] {line[1:]}')
+        new_line += 1
+    else:
+        print(line)
+")
+
+if [ -z "$DIFF" ]; then   # ← check này vẫn giữ nguyên
     echo "[pre-push] Không có thay đổi code, bỏ qua review."
     exit 0
 fi
@@ -62,7 +85,8 @@ CHO PHÉP (APPROVE) khi:
 - Chỉ có vấn đề nhỏ (thiếu newline cuối file, formatting, naming)
 
 Nếu có lỗi nghiêm trọng:
-- Chỉ ra file và lỗi cụ thể
+- Chỉ ra file và số dòng cụ thể theo format: <file>:<line> — <lý do>
+  Ví dụ: main.py:L4 — 'looxi o day' không phải Python statement hợp lệ
 - Giải thích ngắn gọn tại sao phải chặn
 - Kết thúc bằng: REJECT
 
