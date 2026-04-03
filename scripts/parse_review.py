@@ -12,21 +12,10 @@ import ast
 APPROVE_PATTERN = re.compile(r'\bAPPROVE\b', re.IGNORECASE)
 REJECT_PATTERN  = re.compile(r'\bREJECT\b',  re.IGNORECASE)
 
-
 def extract_agent_messages_from_json_events(lines):
-    """
-    Parse JSON events từ output có marker --JSON Event--.
-    Trả về list các text từ agent responses.
-
-    Hỗ trợ 2 dạng input:
-    - Plain text (OpenHands pipe trực tiếp): mỗi dòng là một phần tử string
-    - Python list repr (captured output): đã được ast.literal_eval → list of strings
-
-    Lưu ý: sau ast.literal_eval, ký tự \\n trong JSON string value bị
-    unescaped thành literal newline → invalid JSON khi join lại.
-    Fix: escape lại trước khi join.
-    """
     agent_responses = []
+    last_thought = ""      # thought của ActionEvent cuối
+    last_observation = ""  # kết quả tool cuối
     i = 0
     n = len(lines)
 
@@ -36,12 +25,10 @@ def extract_agent_messages_from_json_events(lines):
         if line == "--JSON Event--":
             i += 1
             json_lines = []
-
             while i < n:
                 current = str(lines[i]).strip()
                 if current in ("--JSON Event--", "Agent finished", "Agent is working"):
                     break
-                # Escape literal newlines để tránh invalid JSON sau ast.literal_eval
                 safe_line = str(lines[i]).replace('\n', '\\n').replace('\r', '\\r')
                 json_lines.append(safe_line)
                 i += 1
@@ -55,18 +42,44 @@ def extract_agent_messages_from_json_events(lines):
             except json.JSONDecodeError:
                 continue
 
-            if (
-                isinstance(event, dict)
-                and event.get("source") == "agent"
-                and event.get("kind") == "MessageEvent"
-            ):
+            kind   = event.get("kind", "")
+            source = event.get("source", "")
+
+            # Final message từ agent (happy path)
+            if kind == "MessageEvent" and source == "agent":
                 for item in event.get("llm_message", {}).get("content", []):
                     if isinstance(item, dict) and item.get("type") == "text":
                         text = item.get("text", "").strip()
                         if text:
                             agent_responses.append(text)
+
+            # Agent dùng tool: lưu thought để fallback nếu crash
+            elif kind == "ActionEvent" and source == "agent":
+                thoughts = event.get("thought", [])
+                for t in thoughts:
+                    if isinstance(t, dict) and t.get("type") == "text":
+                        last_thought = t.get("text", "").strip()
+
+            # Kết quả tool: lưu để fallback
+            elif kind == "ObservationEvent":
+                obs = event.get("observation", {})
+                content = obs.get("content", [])
+                for c in content:
+                    if isinstance(c, dict) and c.get("type") == "text":
+                        last_observation = c.get("text", "").strip()
+
+            # Agent crash: log để debug
+            elif kind == "ConversationErrorEvent":
+                detail = event.get("detail", "")
+                print(f"[review] ⚠️  Agent gặp lỗi: {detail[:120]}", file=sys.stderr)
+
         else:
             i += 1
+
+    # Nếu agent crash trước khi gửi MessageEvent,
+    # thử dùng observation cuối (kết quả py_compile, file view...) làm context
+    if not agent_responses and last_observation:
+        agent_responses.append(f"[Agent crashed. Last observation]\n{last_observation}")
 
     return agent_responses
 
