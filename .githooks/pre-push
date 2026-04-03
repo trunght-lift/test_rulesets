@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # pre-push hook: chạy OpenHands code review trước khi push
-# Flow: build diff → docker exec openhands CLI headless --json → parse verdict
+# Flow: build diff → openhands CLI headless --json → parse verdict
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-CONTAINER_NAME="openhands"
 PARSE_SCRIPT="$REPO_ROOT/scripts/parse_review.py"
+
+# Load .env nếu có
+if [ -f "$REPO_ROOT/.env" ]; then
+    export $(grep -v '^#' "$REPO_ROOT/.env" | xargs)
+fi
 
 # ── 1. Lấy diff của commits sắp push ─────────────────────────────────────────
 # stdin của pre-push: "<local_ref> <local_sha1> <remote_ref> <remote_sha1>"
@@ -51,19 +55,27 @@ REJECT   (nếu có lỗi nghiêm trọng cần sửa trước khi push)
 $DIFF_TRUNCATED
 --- END DIFF ---"
 
-# ── 3. Kiểm tra container đang chạy ──────────────────────────────────────────
-if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    echo "[pre-push] Container '$CONTAINER_NAME' chưa chạy."
-    echo "           Hãy chạy: docker compose up -d"
+# ── 3. Kiểm tra OpenHands CLI ────────────────────────────────────────────────
+if ! command -v openhands &> /dev/null; then
+    echo "[pre-push] OpenHands CLI chưa cài đặt."
+    echo "           Cài đặt: pip install openhands-ai"
+    echo "           Hoặc: pipx install openhands-ai"
     echo "           Bỏ qua review, tiếp tục push..."
     exit 0
 fi
 
-# ── 4. Chạy OpenHands headless trong container ────────────────────────────────
+# Kiểm tra API key
+if [ -z "${LLM_API_KEY:-}" ]; then
+    echo "[pre-push] LLM_API_KEY chưa được set trong .env"
+    echo "           Bỏ qua review, tiếp tục push..."
+    exit 0
+fi
+
+# ── 4. Chạy OpenHands headless ────────────────────────────────────────────────
 echo "[pre-push] Đang chạy OpenHands code review..."
 
-REVIEW_OUTPUT=$(docker exec -i "$CONTAINER_NAME" \
-    openhands --headless --json --always-approve \
+REVIEW_OUTPUT=$(openhands --headless --json --always-approve \
+    --override-with-envs \
     -t "$TASK" 2>&1) || true
 
 # ── 5. Parse verdict ──────────────────────────────────────────────────────────
