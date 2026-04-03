@@ -78,5 +78,8 @@ REVIEW_OUTPUT=$(openhands --headless --json --always-approve \
     --override-with-envs \
     -t "$TASK" 2>&1) || true
 
+# Lưu output để debug nếu cần
+echo "$REVIEW_OUTPUT" > /tmp/openhands-review.log
+
 # ── 5. Parse verdict ──────────────────────────────────────────────────────────
 echo "$REVIEW_OUTPUT" | python3 "$PARSE_SCRIPT"

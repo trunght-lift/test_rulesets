@@ -49,16 +49,14 @@ def main():
 
     if not full_text.strip():
         print("[review] Không có output từ OpenHands.", file=sys.stderr)
-        # Debug: in raw input
-        raw = sys.stdin.read()
-        if raw:
-            print(f"[debug] Raw output:\n{raw[:500]}", file=sys.stderr)
         sys.exit(1)
 
-    # In summary để dev thấy
-    print("\n--- OpenHands Code Review ---")
-    print(last_content[:2000])  # in phần cuối cùng (thường là verdict)
-    print("-----------------------------\n")
+    # In toàn bộ output để dev thấy chi tiết
+    print("\n" + "="*60)
+    print("OpenHands Code Review")
+    print("="*60)
+    print(full_text.strip())
+    print("="*60 + "\n")
 
     if REJECT_PATTERN.search(full_text):
         print("[review] ❌  REJECTED — push bị chặn.", file=sys.stderr)
