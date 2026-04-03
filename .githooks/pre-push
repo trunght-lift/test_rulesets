@@ -88,7 +88,7 @@ REVIEW_OUTPUT=$(openhands --headless --json --always-approve \
     -t "$TASK" 2>&1) || true
 
 # Chỉ lưu log nếu có env DEBUG=1 (tránh lộ thông tin nhạy cảm)
-if [ "${DEBUG:-0}" = "1" ]; then
+if [ "${DEBUG:-1}" = "1" ]; then
     echo "$REVIEW_OUTPUT" > "$LOG_FILE"
     echo "[debug] Output đã lưu vào $LOG_FILE" >&2
 fi
