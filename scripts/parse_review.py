@@ -11,74 +11,77 @@ import re
 APPROVE_PATTERN = re.compile(r'\bAPPROVE\b', re.IGNORECASE)
 REJECT_PATTERN  = re.compile(r'\bREJECT\b',  re.IGNORECASE)
 
-def extract_text(event: dict) -> str:
-    """Lấy text từ các loại event JSONL của OpenHands."""
-    # observation content
-    if event.get("type") == "observation":
-        return event.get("content", "")
-    # action message
-    if event.get("type") == "action":
-        return event.get("message", "") or event.get("content", "")
-    return ""
-
 def main():
-    lines = sys.stdin.read().strip().splitlines()
+    raw_input = sys.stdin.read()
+    lines = raw_input.strip().splitlines()
+    
+    agent_responses = []
     full_text = ""
-    last_content = ""
-
-    with open("t.txt", "w") as f:
-        f.write(str(lines))
     
-    # Chỉ lấy các message từ agent (bỏ system/user prompt)
-    agent_messages = []
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            event = json.loads(line)
-            # Chỉ parse nếu event là dict
-            if isinstance(event, dict):
-                text = extract_text(event)
-                if text:
-                    full_text += "\n" + text
-                    last_content = text
-                    # Lưu message từ agent
-                    if event.get("source") == "agent" or event.get("type") == "observation":
-                        agent_messages.append(text)
-            else:
-                # JSON nhưng không phải dict (array, string, etc.)
-                full_text += "\n" + str(event)
-                last_content = str(event)
-        except (json.JSONDecodeError, TypeError):
-            # Dòng plain text (fallback khi không dùng --json)
-            full_text += "\n" + line
-            last_content = line
-
-    if not full_text.strip():
-        print("[review] Không có output từ OpenHands.", file=sys.stderr)
+    # Parse từng dòng, tìm JSON events từ agent
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # Tìm marker "--JSON Event--"
+        if line == "--JSON Event--":
+            # Đọc các dòng tiếp theo cho đến khi hết JSON object
+            json_lines = []
+            i += 1
+            brace_count = 0
+            started = False
+            
+            while i < len(lines):
+                current = lines[i]
+                json_lines.append(current)
+                
+                # Đếm dấu ngoặc để biết khi nào JSON object kết thúc
+                for char in current:
+                    if char == '{':
+                        brace_count += 1
+                        started = True
+                    elif char == '}':
+                        brace_count -= 1
+                
+                i += 1
+                
+                # Kết thúc JSON object
+                if started and brace_count == 0:
+                    break
+            
+            # Parse JSON
+            try:
+                json_str = '\n'.join(json_lines)
+                event = json.loads(json_str)
+                
+                # Chỉ lấy message từ agent
+                if event.get("source") == "agent" and event.get("kind") == "MessageEvent":
+                    llm_msg = event.get("llm_message", {})
+                    content_list = llm_msg.get("content", [])
+                    
+                    for content_item in content_list:
+                        if content_item.get("type") == "text":
+                            text = content_item.get("text", "")
+                            if text:
+                                agent_responses.append(text)
+                                full_text += "\n" + text
+            except (json.JSONDecodeError, ValueError) as e:
+                # Bỏ qua JSON không hợp lệ
+                pass
+        
+        i += 1
+    
+    if not agent_responses:
+        print("[review] Không có response từ agent.", file=sys.stderr)
         sys.exit(1)
-
-    # Chỉ in phần kết luận cuối (thường là verdict)
-    # Tìm đoạn text có chứa APPROVE/REJECT
-    verdict_text = ""
-    for msg in reversed(agent_messages):
-        if APPROVE_PATTERN.search(msg) or REJECT_PATTERN.search(msg):
-            verdict_text = msg
-            break
     
-    # Nếu không tìm thấy trong agent_messages, lấy last_content
-    if not verdict_text:
-        verdict_text = last_content
+    # Lấy response cuối cùng từ agent (thường là verdict)
+    final_response = agent_responses[-1]
     
-
     print("\n" + "="*60)
     print("OpenHands Code Review")
     print("="*60)
-    # Chỉ in tối đa 1000 ký tự cuối
-    display_text = verdict_text[-1000:] if len(verdict_text) > 1000 else verdict_text
-    print(display_text.strip())
+    print(final_response.strip())
     print("="*60 + "\n")
 
     if REJECT_PATTERN.search(full_text):
