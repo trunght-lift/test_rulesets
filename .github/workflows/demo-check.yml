@@ -14,10 +14,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Print message
         run: echo "GitHub check is running"
 
-      - name: Simulate success
-        run: echo "Done"
+      - name: Simulate fail
+        run: |
+          echo "This check will fail now"
+          exit 1
