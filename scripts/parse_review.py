@@ -27,7 +27,7 @@ def main():
     last_content = ""
 
     with open("t.txt", "w") as f:
-        f.write(lines)
+        f.write(str(lines))
     
     # Chỉ lấy các message từ agent (bỏ system/user prompt)
     agent_messages = []
