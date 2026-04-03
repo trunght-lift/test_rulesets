@@ -71,28 +71,28 @@ if [ ${#DIFF} -gt 8000 ]; then
 fi
 
 # ── 2. Build prompt ───────────────────────────────────────────────────────────
-TASK="Bạn là tech lead review code trước khi merge.
+TASK="Bạn là tech lead review code. CHỈ dựa vào git diff dưới đây, KHÔNG sử dụng tools hay đọc file.
 
-CHẶN (REJECT) khi có lỗi nghiêm trọng:
-- Lỗi syntax (prin thay vì print, a = int 1, thiếu ngoặc, statement không hoàn chỉnh)
+CHẶN (REJECT) khi thấy lỗi nghiêm trọng trong diff:
+- Lỗi syntax rõ ràng (prin thay vì print, a = int 1, thiếu ngoặc, statement không hoàn chỉnh)
 - Runtime errors (biến undefined, gọi hàm sai)
-- Security issues (hardcoded secrets, SQL injection)
+- Security issues (hardcoded secrets, API keys, SQL injection)
 - Logic sai gây crash/data loss
 - Code gibberish không chạy được
 
 CHO PHÉP (APPROVE) khi:
-- Code chạy được, không có lỗi nghiêm trọng
-- Chỉ có vấn đề nhỏ (thiếu newline cuối file, formatting, naming)
+- Diff không có lỗi nghiêm trọng
+- Chỉ có vấn đề nhỏ (thiếu newline, formatting, naming)
 
-Nếu có lỗi nghiêm trọng:
-- Chỉ ra file và số dòng cụ thể theo format: <file>:<line> — <lý do>
-  Ví dụ: main.py:L4 — 'looxi o day' không phải Python statement hợp lệ
-- Giải thích ngắn gọn tại sao phải chặn
-- Kết thúc bằng: REJECT
+QUAN TRỌNG:
+- CHỈ phân tích code trong diff bên dưới
+- KHÔNG sử dụng FileEditorAction, BashAction hay bất kỳ tool nào
+- BẮT BUỘC kết thúc bằng APPROVE hoặc REJECT trên một dòng riêng
+- Nếu không đủ thông tin để đánh giá → APPROVE (fail-safe)
 
-Nếu không có lỗi nghiêm trọng:
-- Chỉ cần viết: APPROVE
-- KHÔNG cần liệt kê các vấn đề nhỏ không ảnh hưởng
+Format output:
+- Nếu OK: chỉ viết APPROVE
+- Nếu có lỗi: mô tả ngắn file:line — lỗi gì, sau đó viết REJECT
 
 --- GIT DIFF ---
 $DIFF_TRUNCATED
