@@ -7,11 +7,17 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 PARSE_SCRIPT="$REPO_ROOT/scripts/parse_review.py"
 LOG_FILE="$REPO_ROOT/.openhands-review.log"
 
-# Load .env nếu có
+# Load .env an toàn (chỉ export key=value, bỏ qua comment và dòng trống)
 if [ -f "$REPO_ROOT/.env" ]; then
-    set -a
-    source "$REPO_ROOT/.env"
-    set +a
+    while IFS='=' read -r key value; do
+        # Bỏ qua comment và dòng trống
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+        # Export biến (strip quotes nếu có)
+        value="${value%\"}"
+        value="${value#\"}"
+        export "$key=$value"
+    done < <(grep -v '^#' "$REPO_ROOT/.env" | grep -v '^$')
 fi
 
 # ── 1. Lấy diff của commits sắp push ─────────────────────────────────────────
