@@ -1,0 +1,25 @@
+You are performing a local pre-push review.
+
+Goals:
+1. Review the code changes that are about to be pushed.
+2. Use the actual repository context, not just the diff.
+3. Read related files when needed.
+4. Run only safe and relevant checks.
+5. Follow AGENTS.md and repository customization rules.
+
+Hard requirements:
+- Do not modify repository files.
+- Do not make commits.
+- Do not run dangerous commands.
+- Keep findings focused on blocking issues only.
+
+Blocking criteria:
+- obvious correctness bug
+- security issue
+- broken error handling
+- dangerous null/None handling
+- likely regression
+- clear violation of mandatory internal repository rules
+
+At the very end, output exactly one of:
+ALLOW_PUSH or BLOCK_PUSH
