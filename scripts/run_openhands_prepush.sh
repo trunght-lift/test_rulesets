@@ -38,15 +38,19 @@ openhands --headless --json -f "$TMP_TASK" > "$TMP_OUT"
 
 tail -n 40 "$TMP_OUT" || true
 
-if grep -q 'BLOCK_PUSH' "$TMP_OUT"; then
-  echo "[pre-push] OpenHands found blocking issues. Push rejected."
-  exit 1
-fi
+DECISION="$(grep -E '^(ALLOW_PUSH|BLOCK_PUSH)$' "$TMP_OUT" | tail -n 1 | tr -d '\r')"
 
-if grep -q 'ALLOW_PUSH' "$TMP_OUT"; then
-  echo "[pre-push] OpenHands approved. Push allowed."
-  exit 0
-fi
-
-echo "[pre-push] No clear ALLOW_PUSH/BLOCK_PUSH verdict. Push rejected."
-exit 1
+case "$DECISION" in
+  BLOCK_PUSH)
+    echo "[pre-push] OpenHands found blocking issues. Push rejected."
+    exit 1
+    ;;
+  ALLOW_PUSH)
+    echo "[pre-push] OpenHands approved. Push allowed."
+    exit 0
+    ;;
+  *)
+    echo "[pre-push] No clear ALLOW_PUSH/BLOCK_PUSH verdict. Push rejected."
+    exit 1
+    ;;
+esac
