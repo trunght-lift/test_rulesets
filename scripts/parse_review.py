@@ -67,18 +67,59 @@ def extract_agent_messages_from_json_events(lines):
 
 def extract_agent_messages_fallback(raw_text):
     """
-    Fallback: tìm verdict trực tiếp trong plain text.
+    Fallback: tìm toàn bộ message agent trong plain text.
     Dùng khi không parse được JSON events.
     """
-    # Tìm các đoạn text có APPROVE hoặc REJECT
-    matches = []
-    for match in re.finditer(r'(.{0,200}(?:APPROVE|REJECT).{0,200})', raw_text, re.IGNORECASE | re.DOTALL):
-        matches.append(match.group(1))
-    return matches
+    messages = []
+
+    # Tìm trong CONVERSATION SUMMARY block (OpenHands in-terminal display)
+    summary_match = re.search(
+        r'CONVERSATION SUMMARY.*?─+\n(.*?)(?:\n─{10,}|\Z)',
+        raw_text, re.DOTALL
+    )
+    if summary_match:
+        messages.append(summary_match.group(1).strip())
+        return messages
+
+    # Tìm trong box Agent (╭─ Agent ─╮ ... ╰─╯)
+    box_match = re.search(
+        r'╭─.*?Agent.*?─+╮(.*?)╰─+╯',
+        raw_text, re.DOTALL
+    )
+    if box_match:
+        # Xóa ANSI codes và ký tự box
+        content = box_match.group(1)
+        content = re.sub(r'\x1b\[[0-9;]*m', '', content)   # ANSI codes
+        content = re.sub(r'^\s*│\s?', '', content, flags=re.MULTILINE)  # border │
+        messages.append(content.strip())
+        return messages
+
+    # Last resort: tìm đoạn dài nhất chứa APPROVE hoặc REJECT
+    candidates = re.findall(
+        r'(?:^|\n)((?:[^\n]+\n){0,20}[^\n]*(?:APPROVE|REJECT)[^\n]*(?:\n[^\n]+){0,5})',
+        raw_text, re.IGNORECASE
+    )
+    if candidates:
+        # Lấy đoạn dài nhất (nhiều context nhất)
+        messages.append(max(candidates, key=len).strip())
+
+    return messages
+
+
+def _find_verdict(text: str) -> str | None:
+    """
+    Tìm verdict cuối cùng xuất hiện trong text.
+    Trả về 'APPROVE', 'REJECT', hoặc None.
+    """
+    verdicts = []
+    for m in re.finditer(r'\b(APPROVE|REJECT)\b', text, re.IGNORECASE):
+        verdicts.append(m.group(1).upper())
+    return verdicts[-1] if verdicts else None
+
 
 def main():
     raw_input = sys.stdin.read()
-    
+
     # Thử parse như Python list nếu input là repr của list
     try:
         if raw_input.strip().startswith('[') and raw_input.strip().endswith(']'):
@@ -89,60 +130,51 @@ def main():
             lines = raw_input.splitlines()
     except (ValueError, SyntaxError):
         lines = raw_input.splitlines()
-    
+
     # Thử parse JSON events trước
     agent_responses = extract_agent_messages_from_json_events(lines)
-    
-    # Fallback: tìm verdict trong plain text
+
+    # Fallback: tìm message trong plain text
     if not agent_responses:
         agent_responses = extract_agent_messages_fallback(raw_input)
-    
+
     if not agent_responses:
         print("[review] Không thể parse output từ OpenHands.", file=sys.stderr)
         print("[review] Có thể format output đã thay đổi hoặc gặp lỗi.", file=sys.stderr)
-        print("[review] Để debug, chạy lại với: DEBUG=1 git push", file=sys.stderr)
-        # Fail-safe: cho phép push nếu không parse được (tránh block dev)
         print("[review] ⚠️  Cho phép push (không thể verify).", file=sys.stderr)
         sys.exit(0)
-    
-    # Tìm response có verdict (APPROVE/REJECT), ưu tiên response cuối
-    verdict_response = None
+
     full_text = "\n".join(agent_responses)
-    
+
+    # Tìm response cuối có chứa verdict
+    verdict_response = None
     for response in reversed(agent_responses):
         if APPROVE_PATTERN.search(response) or REJECT_PATTERN.search(response):
             verdict_response = response
             break
-    
-    # Nếu không tìm thấy verdict trong responses, tìm trong toàn bộ text
     if not verdict_response:
-        verdict_response = agent_responses[-1] if agent_responses else ""
-    
-    # Hiển thị verdict
-    if verdict_response:
-        print("\n" + "="*60)
-        print("OpenHands Code Review")
-        print("="*60)
-        # Chỉ hiển thị tối đa 500 ký tự để tránh spam
-        display_text = verdict_response.strip()
-        if len(display_text) > 500:
-            display_text = display_text[:500] + "\n... (truncated)"
-        print(display_text)
-        print("="*60 + "\n")
+        verdict_response = agent_responses[-1]
 
-    # Kiểm tra verdict trong toàn bộ output
-    if REJECT_PATTERN.search(full_text):
+    # Hiển thị review output
+    separator = "=" * 60
+    print(f"\n{separator}")
+    print("  OpenHands Code Review")
+    print(separator)
+    print(verdict_response.strip())
+    print(f"{separator}\n")
+
+    # Lấy verdict cuối cùng (tránh nhầm khi text đề cập cả hai từ)
+    verdict = _find_verdict(full_text)
+
+    if verdict == "REJECT":
         print("[review] ❌  REJECTED — push bị chặn.", file=sys.stderr)
         sys.exit(1)
 
-    if APPROVE_PATTERN.search(full_text):
+    if verdict == "APPROVE":
         print("[review] ✅  APPROVED — tiếp tục push.")
         sys.exit(0)
 
-    # Không tìm thấy verdict rõ ràng → cảnh báo nhưng cho qua (fail-safe)
+    # Không tìm thấy verdict rõ ràng
     print("[review] ⚠️  Không tìm thấy verdict rõ ràng (APPROVE/REJECT).", file=sys.stderr)
     print("[review] Cho phép push (fail-safe mode).", file=sys.stderr)
     sys.exit(0)
-
-if __name__ == "__main__":
-    main()
