@@ -48,7 +48,7 @@ print(tinh_trung_binh([]))
 hfghfgh
 
 
-d
+dzffsdfsdfsdf
 sadadasdas
 dsfsdfsdf
 
