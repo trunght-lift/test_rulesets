@@ -48,28 +48,27 @@ if [ ${#DIFF} -gt 8000 ]; then
 fi
 
 # ── 2. Build prompt ───────────────────────────────────────────────────────────
-TASK="Bạn là tech lead đang review code trước khi merge. Đánh giá ngắn gọn, đi thẳng vào vấn đề.
+TASK="Bạn là tech lead review code trước khi merge.
 
-CHẶN PUSH (REJECT) khi:
-- Lỗi syntax (ví dụ: prin thay vì print, a = int 1, thiếu dấu ngoặc)
+CHẶN (REJECT) khi có lỗi nghiêm trọng:
+- Lỗi syntax (prin thay vì print, a = int 1, thiếu ngoặc, statement không hoàn chỉnh)
 - Runtime errors (biến undefined, gọi hàm sai)
 - Security issues (hardcoded secrets, SQL injection)
-- Logic sai nghiêm trọng
-- Code gibberish/test với nhiều lỗi
+- Logic sai gây crash/data loss
+- Code gibberish không chạy được
 
 CHO PHÉP (APPROVE) khi:
-- Code chạy được, không có lỗi
-- Chỉ có code smell nhỏ không ảnh hưởng
-- Vấn đề formatting/naming
+- Code chạy được, không có lỗi nghiêm trọng
+- Chỉ có vấn đề nhỏ (thiếu newline cuối file, formatting, naming)
 
-Viết review theo phong cách tech lead:
-- Nêu vấn đề trực tiếp, không dài dòng
+Nếu có lỗi nghiêm trọng:
 - Chỉ ra file và lỗi cụ thể
-- Kết luận ngắn gọn
+- Giải thích ngắn gọn tại sao phải chặn
+- Kết thúc bằng: REJECT
 
-Kết thúc bằng một trong hai từ trên dòng riêng:
-APPROVE
-REJECT
+Nếu không có lỗi nghiêm trọng:
+- Chỉ cần viết: APPROVE
+- KHÔNG cần liệt kê các vấn đề nhỏ không ảnh hưởng
 
 --- GIT DIFF ---
 $DIFF_TRUNCATED
