@@ -1,0 +1,23 @@
+name: Test Check
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "**"
+  pull_request:
+
+jobs:
+  demo-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Print message
+        run: echo "GitHub check is running"
+
+      - name: Simulate success
+        run: echo "Done"
