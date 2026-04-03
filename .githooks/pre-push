@@ -48,27 +48,27 @@ if [ ${#DIFF} -gt 8000 ]; then
 fi
 
 # ── 2. Build prompt ───────────────────────────────────────────────────────────
-TASK="Bạn là code reviewer nghiêm ngặt. Hãy review đoạn git diff sau.
+TASK="You are a technical lead reviewing code changes before they go into the codebase.
 
-TIÊU CHÍ REJECT (phải chặn push):
-- Lỗi syntax Python/JavaScript/... (ví dụ: prin thay vì print, a = int 1)
-- Runtime errors rõ ràng (undefined variables, wrong function calls)
-- Security issues (hardcoded secrets, API keys, SQL injection)
-- Logic sai nghiêm trọng gây crash hoặc data loss
+Review the following git diff and provide your assessment:
 
-TIÊU CHÍ APPROVE:
-- Code chạy được, không có lỗi syntax
-- Có thể có code smell nhỏ nhưng không ảnh hưởng chức năng
-- Formatting issues, naming conventions (không chặn)
+BLOCKING ISSUES (must REJECT):
+- Syntax errors in any language (e.g., typos like 'prin' instead of 'print', malformed statements like 'a = int 1')
+- Runtime errors (undefined variables, incorrect function calls)
+- Security vulnerabilities (hardcoded secrets, API keys, SQL injection)
+- Critical logic errors that cause crashes or data loss
+- Gibberish/test code with multiple errors
 
-QUAN TRỌNG:
-- Nếu thấy BẤT KỲ lỗi syntax nào → REJECT
-- Nếu code có vẻ là gibberish/test code với nhiều lỗi → REJECT
-- Chỉ APPROVE khi code chắc chắn chạy được
+NON-BLOCKING ISSUES (can APPROVE):
+- Code runs without errors
+- Minor code smells that don't affect functionality
+- Formatting or naming convention issues
 
-Cuối cùng, kết luận bằng đúng một trong hai từ trên một dòng riêng:
-APPROVE  (code chạy được, không có lỗi nghiêm trọng)
-REJECT   (có lỗi syntax, security, hoặc logic nghiêm trọng)
+Provide a brief technical assessment of the changes, then conclude with your decision on a separate line:
+APPROVE  (if code is functional and safe to merge)
+REJECT   (if blocking issues exist)
+
+Write your review in a direct, professional tone as a technical lead would - state facts, identify issues clearly, and make a decisive call.
 
 --- GIT DIFF ---
 $DIFF_TRUNCATED
