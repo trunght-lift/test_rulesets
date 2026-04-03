@@ -25,6 +25,9 @@ def main():
     lines = sys.stdin.read().strip().splitlines()
     full_text = ""
     last_content = ""
+
+    with open("t.txt", "w") as f:
+        f.write(lines)
     
     # Chỉ lấy các message từ agent (bỏ system/user prompt)
     agent_messages = []
@@ -69,8 +72,6 @@ def main():
     if not verdict_text:
         verdict_text = last_content
     
-    with open("t.txt", "w") as f:
-        f.write(verdict_text)
 
     print("\n" + "="*60)
     print("OpenHands Code Review")
