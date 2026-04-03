@@ -6,7 +6,7 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 PARSE_SCRIPT="$REPO_ROOT/scripts/parse_review.py"
 LOG_FILE="$REPO_ROOT/.openhands-review.log"
-echo "$REPO_ROOT 12312312312312312"
+
 # Load .env an toàn (chỉ export key=value, bỏ qua comment và dòng trống)
 if [ -f "$REPO_ROOT/.env" ]; then
     while IFS='=' read -r key value; do
