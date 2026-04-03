@@ -32,17 +32,27 @@ def main():
             continue
         try:
             event = json.loads(line)
-            text = extract_text(event)
-            if text:
-                full_text += "\n" + text
-                last_content = text
-        except json.JSONDecodeError:
+            # Chỉ parse nếu event là dict
+            if isinstance(event, dict):
+                text = extract_text(event)
+                if text:
+                    full_text += "\n" + text
+                    last_content = text
+            else:
+                # JSON nhưng không phải dict (array, string, etc.)
+                full_text += "\n" + str(event)
+                last_content = str(event)
+        except (json.JSONDecodeError, TypeError):
             # Dòng plain text (fallback khi không dùng --json)
             full_text += "\n" + line
             last_content = line
 
     if not full_text.strip():
         print("[review] Không có output từ OpenHands.", file=sys.stderr)
+        # Debug: in raw input
+        raw = sys.stdin.read()
+        if raw:
+            print(f"[debug] Raw output:\n{raw[:500]}", file=sys.stderr)
         sys.exit(1)
 
     # In summary để dev thấy
