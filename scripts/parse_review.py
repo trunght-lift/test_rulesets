@@ -16,47 +16,53 @@ def extract_agent_messages_from_json_events(lines):
     """
     Parse JSON events từ output có marker --JSON Event--.
     Trả về list các text từ agent responses.
+
+    Output của OpenHands là list of strings, mỗi phần tử là một dòng.
+    Các JSON block nằm giữa hai marker '--JSON Event--' hoặc kết thúc bởi
+    'Agent finished' / hết danh sách.
     """
     agent_responses = []
     i = 0
-    
-    while i < len(lines):
+    n = len(lines)
+
+    while i < n:
         line = str(lines[i]).strip()
-        
-        # Tìm marker "--JSON Event--"
+
         if line == "--JSON Event--":
             i += 1
-            json_buffer = []
-            
-            while i < len(lines):
-                current_line = str(lines[i])
-                json_buffer.append(current_line)
-                
-                try:
-                    json_str = '\n'.join(json_buffer)
-                    event = json.loads(json_str)
-                    
-                    # Parse thành công, xử lý event
-                    if isinstance(event, dict):
-                        if event.get("source") == "agent" and event.get("kind") == "MessageEvent":
-                            llm_msg = event.get("llm_message", {})
-                            content_list = llm_msg.get("content", [])
-                            
-                            for content_item in content_list:
-                                if isinstance(content_item, dict) and content_item.get("type") == "text":
-                                    text = content_item.get("text", "")
-                                    if text:
-                                        agent_responses.append(text)
-                    
-                    i += 1
+            json_lines = []
+
+            # Gom tất cả các dòng cho đến marker tiếp theo hoặc hết list
+            while i < n:
+                current = str(lines[i]).strip()
+                if current in ("--JSON Event--", "Agent finished", "Agent is working"):
                     break
-                    
-                except json.JSONDecodeError:
-                    i += 1
-                    continue
+                json_lines.append(str(lines[i]))
+                i += 1
+
+            json_str = "\n".join(json_lines).strip()
+            if not json_str:
+                continue
+
+            try:
+                event = json.loads(json_str)
+            except json.JSONDecodeError:
+                continue
+
+            if (
+                isinstance(event, dict)
+                and event.get("source") == "agent"
+                and event.get("kind") == "MessageEvent"
+            ):
+                content_list = event.get("llm_message", {}).get("content", [])
+                for item in content_list:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        text = item.get("text", "").strip()
+                        if text:
+                            agent_responses.append(text)
         else:
             i += 1
-    
+
     return agent_responses
 
 def extract_agent_messages_fallback(raw_text):
