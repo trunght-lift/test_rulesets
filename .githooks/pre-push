@@ -105,3 +105,7 @@ fi
 
 # ── 5. Parse verdict ──────────────────────────────────────────────────────────
 echo "$REVIEW_OUTPUT" | python3 "$PARSE_SCRIPT"
+PARSE_EXIT_CODE=$?
+
+# Exit với code từ parse script (0 = approve, 1 = reject)
+exit $PARSE_EXIT_CODE

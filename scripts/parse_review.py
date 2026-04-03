@@ -145,16 +145,22 @@ def main():
         print("[review] ⚠️  Cho phép push (không thể verify).", file=sys.stderr)
         sys.exit(0)
 
-    full_text = "\n".join(agent_responses)
-
+    # CHỈ tìm verdict trong agent responses, KHÔNG tìm trong toàn bộ raw_input
+    # (vì raw_input chứa cả prompt có chữ APPROVE/REJECT)
+    # VÀ CHỈ LẤY VERDICT TỪ RESPONSE CUỐI CÙNG (tránh nhầm với log cũ)
+    
     # Tìm response cuối có chứa verdict
     verdict_response = None
+    verdict = None
     for response in reversed(agent_responses):
         if APPROVE_PATTERN.search(response) or REJECT_PATTERN.search(response):
             verdict_response = response
+            verdict = _find_verdict(response)  # Chỉ tìm trong response này
             break
+    
     if not verdict_response:
         verdict_response = agent_responses[-1]
+        verdict = _find_verdict(verdict_response)
 
     # Hiển thị review output
     separator = "=" * 60
@@ -163,9 +169,6 @@ def main():
     print(separator)
     print(verdict_response.strip())
     print(f"{separator}\n")
-
-    # Lấy verdict cuối cùng (tránh nhầm khi text đề cập cả hai từ)
-    verdict = _find_verdict(full_text)
 
     if verdict == "REJECT":
         print("[review] ❌  REJECTED — push bị chặn.", file=sys.stderr)
@@ -179,3 +182,7 @@ def main():
     print("[review] ⚠️  Không tìm thấy verdict rõ ràng (APPROVE/REJECT).", file=sys.stderr)
     print("[review] Cho phép push (fail-safe mode).", file=sys.stderr)
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
