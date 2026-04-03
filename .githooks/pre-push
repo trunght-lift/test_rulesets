@@ -109,7 +109,6 @@ fi
 echo "[pre-push] Đang chạy OpenHands code review..."
 
 REVIEW_OUTPUT=$(openhands --headless --json --always-approve \
-    --max-iterations 5 \
     --override-with-envs \
     -t "$TASK" 2>&1) || true
 
