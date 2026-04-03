@@ -71,11 +71,19 @@ if [ ${#DIFF} -gt 8000 ]; then
 fi
 
 # ── 2. Build prompt ───────────────────────────────────────────────────────────
-TASK="Hãy review code
+TASK="Bạn là code reviewer. Nhiệm vụ của bạn:
+
+1. Đọc git diff dưới đây để biết file nào và dòng nào thay đổi
+2. Dùng tool để xem full context file nếu cần hiểu rõ hơn
+3. Nếu nghi ngờ có lỗi runtime, chạy thử bằng: python -m py_compile <file>
+   hoặc python -c để verify
+4. Sau khi có đủ thông tin, KẾT THÚC bằng đúng một trong hai:
 
 APPROVE  — nếu code chạy được, không có lỗi nghiêm trọng
 REJECT   — nếu có lỗi nghiêm trọng, kèm: <file>:<line> — <lý do>
 
+QUAN TRỌNG: Khi đã đủ thông tin để kết luận, dừng lại và đưa ra verdict ngay.
+Không lặp lại việc xem file nhiều lần.
 
 --- GIT DIFF ---
 $DIFF_TRUNCATED
