@@ -25,6 +25,9 @@ def main():
     lines = sys.stdin.read().strip().splitlines()
     full_text = ""
     last_content = ""
+    
+    # Chỉ lấy các message từ agent (bỏ system/user prompt)
+    agent_messages = []
 
     for line in lines:
         line = line.strip()
@@ -38,6 +41,9 @@ def main():
                 if text:
                     full_text += "\n" + text
                     last_content = text
+                    # Lưu message từ agent
+                    if event.get("source") == "agent" or event.get("type") == "observation":
+                        agent_messages.append(text)
             else:
                 # JSON nhưng không phải dict (array, string, etc.)
                 full_text += "\n" + str(event)
@@ -51,11 +57,24 @@ def main():
         print("[review] Không có output từ OpenHands.", file=sys.stderr)
         sys.exit(1)
 
-    # In toàn bộ output để dev thấy chi tiết
+    # Chỉ in phần kết luận cuối (thường là verdict)
+    # Tìm đoạn text có chứa APPROVE/REJECT
+    verdict_text = ""
+    for msg in reversed(agent_messages):
+        if APPROVE_PATTERN.search(msg) or REJECT_PATTERN.search(msg):
+            verdict_text = msg
+            break
+    
+    # Nếu không tìm thấy trong agent_messages, lấy last_content
+    if not verdict_text:
+        verdict_text = last_content
+
     print("\n" + "="*60)
     print("OpenHands Code Review")
     print("="*60)
-    print(full_text.strip())
+    # Chỉ in tối đa 1000 ký tự cuối
+    display_text = verdict_text[-1000:] if len(verdict_text) > 1000 else verdict_text
+    print(display_text.strip())
     print("="*60 + "\n")
 
     if REJECT_PATTERN.search(full_text):
